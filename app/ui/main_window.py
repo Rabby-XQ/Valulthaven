@@ -1567,7 +1567,7 @@ class MainWindow(QMainWindow):
             self.destination_label.setText(
                 title
             )
-            self.change_destination_button.setText("Change channel")
+            self.change_destination_button.setText("Change")
             self.change_destination_button.setEnabled(
                 self.telegram_connected
             )
