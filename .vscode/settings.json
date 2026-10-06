@@ -1,0 +1,4 @@
+{
+    "python.terminal.useEnvFile": true,
+    "terminal.external.windowsExec": "wt.exe"
+}
