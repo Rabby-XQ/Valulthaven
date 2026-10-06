@@ -1015,7 +1015,7 @@ class MainWindow(QMainWindow):
 
         header = QHBoxLayout()
 
-        title = QLabel(APP_NAME)
+        title = QLabel("Overview")
 
         title.setObjectName(
             "title"
@@ -1085,25 +1085,7 @@ class MainWindow(QMainWindow):
         self.about_action_layout.addWidget(self.about_text_label, 1)
         self.about_button.clicked.connect(self.show_about_dialog)
 
-        header_title = QVBoxLayout()
-        header_title.setSpacing(2)
-        header_title.addWidget(title)
-        header_subtitle = QLabel(
-            "Your media, safely stored in Telegram."
-        )
-        header_subtitle.setObjectName("muted")
-        header_title.addWidget(header_subtitle)
-        header_logo = QLabel()
-        header_logo.setFixedSize(40, 40)
-        header_logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        header_logo.setPixmap(
-            app_icon().pixmap(QSize(38, 38))
-        )
-        header_brand = QHBoxLayout()
-        header_brand.setSpacing(12)
-        header_brand.addWidget(header_logo)
-        header_brand.addLayout(header_title)
-        header.addLayout(header_brand)
+        header.addWidget(title)
 
         header.addStretch()
 
@@ -1168,12 +1150,12 @@ class MainWindow(QMainWindow):
         )
         self.profile_account_action.setEnabled(False)
         self.profile_destination_action = self.profile_menu.addAction(
-            "Backup location: Not configured"
+            "Telegram backup channel: Not selected"
         )
         self.profile_destination_action.setEnabled(False)
         self.profile_menu.addSeparator()
         self.profile_change_destination_action = self.profile_menu.addAction(
-            "Change backup location"
+            "Choose Telegram backup channel"
         )
         self.profile_change_destination_action.triggered.connect(
             self.change_backup_location
@@ -1275,7 +1257,7 @@ class MainWindow(QMainWindow):
             (overview_button, "Overview", "home"),
             (add_sidebar_action("", self.choose_folder), "Choose folder", "folder"),
             (add_sidebar_action("", self.scan_now), "Scan now", "scan"),
-            (add_sidebar_action("", self.change_backup_location), "Backup location", "storage"),
+            (add_sidebar_action("", self.change_backup_location), "Telegram channel", "storage"),
             (add_sidebar_action("", self.show_upload_queue), "Upload queue", "queue"),
         ]
         sidebar_layout.addStretch()
@@ -1311,7 +1293,7 @@ class MainWindow(QMainWindow):
         folder_layout.setSpacing(8)
 
         folder_title = QLabel(
-            "Backup Folder"
+            "Folder to scan"
         )
 
         folder_title.setObjectName(
@@ -1325,6 +1307,12 @@ class MainWindow(QMainWindow):
         self.folder_label.setObjectName(
             "folderLabel"
         )
+
+        folder_help = QLabel(
+            "New files in this folder will be checked for backup."
+        )
+        folder_help.setObjectName("muted")
+        folder_help.setWordWrap(True)
 
         self.folder_label.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
@@ -1342,6 +1330,8 @@ class MainWindow(QMainWindow):
             folder_title
         )
 
+        folder_layout.addWidget(folder_help)
+
         folder_layout.addWidget(
             self.folder_label
         )
@@ -1354,7 +1344,7 @@ class MainWindow(QMainWindow):
             folder_card
         )
 
-        # Backup Location card
+        # Telegram backup channel card
 
         destination_card = QFrame()
         destination_card.setObjectName("card")
@@ -1363,8 +1353,14 @@ class MainWindow(QMainWindow):
         destination_layout.setContentsMargins(18, 16, 18, 16)
         destination_layout.setSpacing(8)
 
-        destination_title = QLabel("Backup Location")
+        destination_title = QLabel("Telegram backup channel")
         destination_title.setObjectName("sectionTitle")
+
+        destination_help = QLabel(
+            "Your backups are stored in this private Telegram channel."
+        )
+        destination_help.setObjectName("muted")
+        destination_help.setWordWrap(True)
 
         self.destination_label = QLabel("Not configured")
         self.destination_label.setObjectName("destinationLabel")
@@ -1375,7 +1371,7 @@ class MainWindow(QMainWindow):
 
         destination_row.addWidget(self.destination_label, 1)
 
-        self.change_destination_button = QPushButton("Change")
+        self.change_destination_button = QPushButton("Choose channel")
         self.change_destination_button.setFixedWidth(110)
         self.change_destination_button.setEnabled(False)
         self.change_destination_button.clicked.connect(
@@ -1385,6 +1381,7 @@ class MainWindow(QMainWindow):
         destination_row.addWidget(self.change_destination_button)
 
         destination_layout.addWidget(destination_title)
+        destination_layout.addWidget(destination_help)
         destination_layout.addLayout(destination_row)
 
         root.addWidget(destination_card)
@@ -1568,22 +1565,25 @@ class MainWindow(QMainWindow):
         if self.backup_destination_available:
             title = self.backup_destination_title or "Telegram Channel"
             self.destination_label.setText(
-                f"✓ {title}"
+                title
             )
+            self.change_destination_button.setText("Change channel")
             self.change_destination_button.setEnabled(
                 self.telegram_connected
             )
         elif self.backup_destination_id is not None:
             self.destination_label.setText(
-                "⚠ Backup Location Unavailable"
+                "Saved Telegram channel is unavailable"
             )
+            self.change_destination_button.setText("Choose channel")
             self.change_destination_button.setEnabled(
                 self.telegram_connected
             )
         else:
             self.destination_label.setText(
-                "Not configured"
+                "No channel selected"
             )
+            self.change_destination_button.setText("Choose channel")
             self.change_destination_button.setEnabled(
                 self.telegram_connected
             )
@@ -1594,15 +1594,15 @@ class MainWindow(QMainWindow):
                     self.backup_destination_title or "Telegram channel"
                 )
                 self.profile_destination_action.setText(
-                    f"Backup location: {title}"
+                    f"Telegram backup channel: {title}"
                 )
             elif self.backup_destination_id is not None:
                 self.profile_destination_action.setText(
-                    "Backup location: Unavailable"
+                    "Telegram backup channel: Unavailable"
                 )
             else:
                 self.profile_destination_action.setText(
-                    "Backup location: Not configured"
+                    "Telegram backup channel: Not selected"
                 )
             self.profile_change_destination_action.setEnabled(
                 self.telegram_connected
@@ -1622,7 +1622,7 @@ class MainWindow(QMainWindow):
                 self,
                 "Upload in progress",
                 "Please wait for the current upload to finish "
-                "before changing the backup location.",
+                "before changing the Telegram backup channel.",
             )
             return
 
@@ -1665,7 +1665,7 @@ class MainWindow(QMainWindow):
 
                     await self.show_async_message(
                         QMessageBox.Icon.Warning,
-                        "Backup Location",
+                        "Telegram backup channel",
                         "That Telegram channel is no longer "
                         "available.",
                     )
@@ -1700,14 +1700,14 @@ class MainWindow(QMainWindow):
             self.update_destination_ui()
 
             self.status_label.setText(
-                "● Backup location ready"
+                "● Telegram backup channel ready"
             )
             self.process_next_upload()
 
         except Exception as exc:
             await self.show_async_message(
                 QMessageBox.Icon.Critical,
-                "Backup Location Error",
+                "Telegram backup channel error",
                 str(exc),
             )
 
@@ -1736,7 +1736,7 @@ class MainWindow(QMainWindow):
 
             if self.startup_mode and not self.isVisible():
                 self.show_notification(
-                    "Choose a private backup location",
+                    "Choose a private Telegram backup channel",
                     f"Open {APP_NAME} from the tray to finish setup.",
                     "warning",
                 )
@@ -1772,10 +1772,10 @@ class MainWindow(QMainWindow):
 
                 await self.show_async_message(
                     QMessageBox.Icon.Warning,
-                    "Backup Location Unavailable",
+                    "Telegram backup channel unavailable",
                     "Your saved Telegram backup channel "
                     "could not be found, accessed, or is no longer private.\n\n"
-                    "Please choose a new backup location.",
+                    "Please choose a new Telegram backup channel.",
                 )
 
                 await self._change_backup_location()
@@ -1813,8 +1813,8 @@ class MainWindow(QMainWindow):
 
             await self.show_async_message(
                 QMessageBox.Icon.Warning,
-                "Backup Location Unavailable",
-                f"Could not verify the saved backup location.\n\n"
+                "Telegram backup channel unavailable",
+                f"Could not verify the saved Telegram backup channel.\n\n"
                 f"{exc}",
             )
 
@@ -2120,7 +2120,7 @@ class MainWindow(QMainWindow):
             elif self.automatic_scan_enabled and not self.selected_folder:
                 self.show_notification(
                     "Automatic backup needs setup",
-                    f"Choose a backup folder in {APP_NAME}.",
+                    f"Choose a folder to scan in {APP_NAME}.",
                     "warning",
                 )
 
@@ -2711,7 +2711,7 @@ class MainWindow(QMainWindow):
 
         folder = QFileDialog.getExistingDirectory(
             self,
-            "Select Backup Folder",
+            "Select Folder to Scan",
             self.selected_folder
             or str(Path.home()),
         )
@@ -3218,8 +3218,8 @@ class MainWindow(QMainWindow):
         if not self.backup_destination_available:
             await self.show_async_message(
                 QMessageBox.Icon.Warning,
-                "Backup Location",
-                "Please choose a Telegram backup location first.",
+                "Telegram backup channel",
+                "Please choose a Telegram backup channel first.",
             )
 
             await self._change_backup_location()
@@ -3320,7 +3320,7 @@ class MainWindow(QMainWindow):
 
         if not self.telegram_connected or not self.backup_destination_available:
             self.status_label.setText(
-                "● Connect Telegram and choose a private backup location to resume"
+                "● Connect Telegram and choose a private backup channel to resume"
             )
             return
 
@@ -3515,7 +3515,7 @@ class MainWindow(QMainWindow):
             card.item["skip_reason"] = "duplicate"
             card.set_status("skipped")
             card.transfer_label.setText(
-                "Already uploaded to this backup location"
+                "Already uploaded to this Telegram backup channel"
             )
             self.upload_in_progress = False
             self.upload_worker = None
@@ -3726,8 +3726,8 @@ class MainWindow(QMainWindow):
         if not self.backup_destination_available:
             QMessageBox.warning(
                 self,
-                "Backup Location",
-                "Backup location is unavailable.",
+                "Telegram backup channel",
+                "Telegram backup channel is unavailable.",
             )
             return
 
@@ -3941,7 +3941,7 @@ class MainWindow(QMainWindow):
 
         if (
             "Upload blocked:" in str(error)
-            or "Could not verify that the Telegram backup location" in str(error)
+            or "Could not verify that the Telegram backup channel" in str(error)
         ):
             self.telegram.clear_upload_destination()
             self.backup_destination_available = False

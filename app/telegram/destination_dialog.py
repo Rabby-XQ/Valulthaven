@@ -21,7 +21,7 @@ class BackupLocationDialog(QDialog):
     def __init__(self, parent=None, channels=None, current_id=None):
         super().__init__(parent)
 
-        self.setWindowTitle("Choose Backup Location")
+        self.setWindowTitle("Choose Telegram Backup Channel")
         self.setMinimumSize(560, 450)
         self.setStyleSheet("""
             QDialog {
@@ -122,7 +122,7 @@ class BackupLocationDialog(QDialog):
         root.setContentsMargins(24, 22, 24, 20)
         root.setSpacing(12)
 
-        title = QLabel("Choose Backup Location")
+        title = QLabel("Choose Telegram Backup Channel")
         title.setObjectName("dialogTitle")
 
         subtitle = QLabel(
@@ -193,7 +193,7 @@ class BackupLocationDialog(QDialog):
         if self.selected_channel_id() is None:
             QMessageBox.warning(
                 self,
-                "Backup Location",
+                "Telegram Backup Channel",
                 "Please select a Telegram channel.",
             )
             return
