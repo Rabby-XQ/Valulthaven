@@ -1,15 +1,13 @@
 import os
+import shutil
+import sys
 from pathlib import Path
 
-from dotenv import load_dotenv
 from telethon import TelegramClient
 from telethon.tl.functions.channels import CreateChannelRequest
 from telethon.tl.types import Channel, InputPeerChannel
 
 from app.constants import APP_NAME
-
-
-load_dotenv()
 
 
 class TelegramService:
@@ -27,36 +25,75 @@ class TelegramService:
             for username in (getattr(entity, "usernames", None) or ())
         )
 
-    def __init__(self):
-        api_id = os.getenv("TELEGRAM_API_ID")
-        api_hash = os.getenv("TELEGRAM_API_HASH")
-
-        if not api_id or not api_hash:
-            raise RuntimeError(
-                "Telegram API credentials are missing. "
-                "Please configure TELEGRAM_API_ID and "
-                "TELEGRAM_API_HASH in .env."
-            )
-
-        try:
-            api_id = int(api_id)
-        except ValueError as exc:
-            raise RuntimeError(
-                "TELEGRAM_API_ID must be a number."
-            ) from exc
-
-        session_path = Path("data/telegram")
-        session_path.parent.mkdir(parents=True, exist_ok=True)
-
-        self.client = TelegramClient(
-            str(session_path),
-            api_id,
-            api_hash,
-        )
-
+    def __init__(self, api_id=None, api_hash=None):
+        self.api_id = None
+        self.api_hash = None
+        self.client = None
+        self.session_path = self._get_session_path()
+        if api_id and api_hash:
+            self.configure_credentials(api_id, api_hash)
         self.upload_destination = None
 
+    @staticmethod
+    def _get_session_path():
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if local_app_data:
+            user_data_root = Path(local_app_data)
+        elif os.name == "nt":
+            user_data_root = (
+                Path.home() / "AppData" / "Local"
+            )
+        else:
+            user_data_root = Path.home() / ".local" / "share"
+
+        session_directory = user_data_root / APP_NAME / "data"
+        session_directory.mkdir(parents=True, exist_ok=True)
+        session_path = session_directory / "telegram"
+
+        # Preserve a developer's existing source-run login once, but never
+        # migrate session data from a frozen/release bundle.
+        session_file = session_path.with_suffix(".session")
+        legacy_session = Path.cwd() / "data" / "telegram.session"
+        if (
+            not getattr(sys, "frozen", False)
+            and not session_file.exists()
+            and legacy_session.is_file()
+        ):
+            temporary_session = session_file.with_suffix(".session.tmp")
+            shutil.copy2(legacy_session, temporary_session)
+            os.replace(temporary_session, session_file)
+
+        return session_path
+
+    def configure_credentials(self, api_id, api_hash):
+        try:
+            parsed_api_id = int(str(api_id).strip())
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Telegram API ID must be a number.") from exc
+        api_hash = str(api_hash).strip()
+        if not api_hash:
+            raise ValueError("Telegram API Hash is required.")
+
+        if self.api_id == parsed_api_id and self.api_hash == api_hash:
+            return
+
+        if self.client is not None and self.client.is_connected():
+            raise RuntimeError("Disconnect Telegram before changing API credentials.")
+
+        self.api_id = parsed_api_id
+        self.api_hash = api_hash
+        self.client = TelegramClient(
+            str(self.session_path),
+            self.api_id,
+            self.api_hash,
+        )
+
+    def has_credentials(self):
+        return self.client is not None
+
     async def connect(self):
+        if self.client is None:
+            return False
         await self.client.connect()
         return await self.client.is_user_authorized()
 
@@ -409,5 +446,5 @@ class TelegramService:
         return message
 
     async def disconnect(self):
-        if self.client.is_connected():
+        if self.client is not None and self.client.is_connected():
             await self.client.disconnect()

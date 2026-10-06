@@ -1,7 +1,12 @@
 .env
+# User-local backup metadata; never commit or upload this database.
+/data/backup.db
+/data/backup.db-*
 data/telegram.session
 data/*.session
 data/*.session-journal
 __pycache__/
 *.pyc
 .venv/
+build/
+dist/

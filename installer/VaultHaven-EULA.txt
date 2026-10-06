@@ -1,0 +1,73 @@
+VAULTHAVEN END USER LICENSE AGREEMENT
+Version 1.0 — 7 October 2026
+
+PLEASE READ THIS AGREEMENT BEFORE INSTALLING OR USING VAULTHAVEN. BY SELECTING
+“I ACCEPT THE AGREEMENT” OR BY INSTALLING OR USING THE APPLICATION, YOU AGREE TO
+THE TERMS BELOW. IF YOU DO NOT AGREE, DO NOT INSTALL OR USE THE APPLICATION.
+
+1. WHOLE AGREEMENT AND PARTIES
+This agreement is between you and Fozly Rabby (the developer) for the VaultHaven
+desktop application and its accompanying materials (the “Application”).
+
+2. PERMISSION TO USE
+The Application is proprietary software. The developer grants you a personal,
+non-exclusive, non-transferable, revocable permission to install and use the
+published Application for your own file-backup purposes, at no charge. This
+permission does not transfer ownership of the Application or its source code.
+
+3. RESTRICTIONS
+Except where applicable law gives you a right that cannot be restricted, you
+may not modify, reverse engineer, decompile, disassemble, sublicense, sell,
+rent, or redistribute the Application or a modified version. You may not remove
+its copyright or proprietary notices. You may share the official installer
+unchanged. These restrictions do not limit rights granted by third-party
+open-source licenses for their components; those licenses govern those
+components and take precedence where they conflict with this agreement.
+
+4. YOUR FILES AND TELEGRAM
+You keep ownership of files you select. You are responsible for having the
+rights and permissions needed to back them up and for selecting a Telegram
+account and private channel you control. The Application sends selected files
+and their filenames to Telegram. Telegram's terms, privacy policy, availability,
+and retention practices apply to Telegram services. The developer does not
+control Telegram and does not promise that Telegram will retain or make any
+uploaded file available. Check that important files have uploaded successfully
+and keep another copy when needed.
+
+5. PRIVACY
+The accompanying VaultHaven Privacy Policy describes local data storage and
+network requests. You can review it in the installation folder.
+
+6. UPDATES
+Updates may be offered through the project's release page. You choose whether
+to download and install them. This agreement also applies to updates unless an
+update is accompanied by a different agreement.
+
+7. NO WARRANTY
+To the maximum extent permitted by applicable law, the Application is provided
+“AS IS” and “AS AVAILABLE,” without warranties or conditions of any kind. The
+developer does not warrant uninterrupted operation, error-free operation,
+compatibility with every device, or successful or permanent storage of files.
+
+8. LIMITATION OF LIABILITY
+To the maximum extent permitted by applicable law, the developer is not liable
+for indirect, incidental, special, consequential, or punitive loss, or for loss
+of data, profits, or business arising from use of or inability to use the
+Application. Nothing in this agreement excludes liability that applicable law
+does not allow to be excluded. Your mandatory local consumer rights remain
+unaffected.
+
+9. ENDING THIS PERMISSION
+This permission ends if you materially breach this agreement. You may end it at
+any time by uninstalling the Application and stopping its use. Uninstalling
+leaves your local backup database, Telegram session, and settings in place;
+manage or delete that data separately.
+
+10. APPLICABLE LAW
+Mandatory consumer protections in your country continue to apply. Any other
+matter is governed by the law applicable to the developer, subject to those
+mandatory protections.
+
+11. CONTACT
+Fozly Rabby — https://github.com/Rabby-XQ
+VaultHaven project — https://github.com/Rabby-XQ/Valulthaven

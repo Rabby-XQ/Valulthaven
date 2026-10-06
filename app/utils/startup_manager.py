@@ -8,6 +8,8 @@ LEGACY_APP_NAME = "AutoBackup"
 
 
 def get_project_root():
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parents[2]
 
 
@@ -59,29 +61,35 @@ def create_launcher():
         exist_ok=True,
     )
 
-    python_executable = (
-        project_root
-        / ".venv"
-        / "Scripts"
-        / "pythonw.exe"
-    )
-
-    if not python_executable.exists():
-        current_python = Path(sys.executable)
-        pythonw_executable = current_python.with_name("pythonw.exe")
+    if getattr(sys, "frozen", False):
+        executable = Path(sys.executable).resolve()
+        launch_command = f'"""{executable}"" --startup"'
+    else:
         python_executable = (
-            pythonw_executable
-            if pythonw_executable.exists()
-            else current_python
+            project_root
+            / ".venv"
+            / "Scripts"
+            / "pythonw.exe"
         )
 
-    main_module = "app.main"
+        if not python_executable.exists():
+            current_python = Path(sys.executable)
+            pythonw_executable = current_python.with_name("pythonw.exe")
+            python_executable = (
+                pythonw_executable
+                if pythonw_executable.exists()
+                else current_python
+            )
+
+        launch_command = (
+            f'"""{python_executable}"" -m app.main --startup"'
+        )
 
     script = f'''Set shell = CreateObject("WScript.Shell")
 
 shell.CurrentDirectory = "{project_root}"
 
-shell.Run """{python_executable}"" -m {main_module} --startup", 0, False
+shell.Run {launch_command}, 0, False
 '''
 
     launcher_path.write_text(

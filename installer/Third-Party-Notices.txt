@@ -1,0 +1,39 @@
+VAULTHAVEN THIRD-PARTY SOFTWARE NOTICES
+
+VaultHaven includes third-party software. This notice is a summary; each
+component's own license governs its use and distribution. The installed
+application ships its libraries as separate files in the VaultHaven program
+folder so that users can replace compatible LGPL-covered Qt libraries.
+
+PySide6, Shiboken6, and Qt libraries
+License choices published by Qt for Python: GNU LGPL version 3, GNU GPL version
+3, or a Qt commercial license. VaultHaven is distributed under the LGPL option
+where applicable. The Qt libraries are separate shared-library files in the
+installation. You may replace LGPL-covered libraries with compatible modified
+versions, subject to the LGPL and technical compatibility. Qt license details,
+texts, source information, and third-party acknowledgements:
+https://doc.qt.io/qtforpython-6/licenses.html
+https://doc.qt.io/qtforpython-6/
+
+Telethon
+License: MIT. License and copyright notice are included with the Telethon
+package/source: https://github.com/LonamiWebs/Telethon
+
+qasync
+License: BSD 2-Clause. License and copyright notice are included with the
+qasync package/source: https://github.com/CabbageDevelopment/qasync
+
+Python runtime
+The bundled Python runtime is governed by the Python Software Foundation
+License. https://docs.python.org/3/license.html
+
+PyInstaller
+PyInstaller is distributed under GPL with a bootloader exception. Its license
+and exception are available at https://github.com/pyinstaller/pyinstaller/blob/develop/COPYING.txt
+and https://github.com/pyinstaller/pyinstaller/blob/develop/doc/license.rst
+
+This application is proprietary only to the extent of VaultHaven's original
+code and assets. Nothing in the VaultHaven EULA removes permissions granted by
+the licenses above. A copy of applicable license terms is available from the
+linked upstream project/license pages. The exact third-party package versions
+are determined by the build dependencies used for each release.

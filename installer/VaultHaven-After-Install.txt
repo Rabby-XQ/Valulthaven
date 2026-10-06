@@ -1,0 +1,9 @@
+NEXT STEPS
+
+1. Start VaultHaven and connect your Telegram account.
+2. Enter your own Telegram API ID and API Hash when prompted.
+3. Choose a private Telegram channel and the local folder to back up.
+
+To check for an update later, open About in VaultHaven and select Check for updates. Updates are downloaded and installed by the user; setup does not silently replace the app.
+
+Uninstalling VaultHaven removes its program files. Your local database, Telegram session, Windows settings, and Credential Manager entries are retained so uninstalling cannot erase your backup history. Remove those separately if you want to delete them.

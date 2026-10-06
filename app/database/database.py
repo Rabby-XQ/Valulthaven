@@ -1,13 +1,75 @@
 from pathlib import Path
+import os
 import sqlite3
+import tempfile
 from datetime import datetime, timezone
+
+from app.constants import APP_NAME
 
 
 class Database:
-    def __init__(self, db_path="data/backup.db"):
-        self.db_path = Path(db_path)
+    def __init__(self, db_path=None):
+        self.db_path = (
+            Path(db_path)
+            if db_path is not None
+            else self._get_user_database_path()
+        )
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._initialize()
+
+    @staticmethod
+    def _get_user_database_path():
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if local_app_data:
+            user_data_root = Path(local_app_data)
+        else:
+            user_data_root = Path.home() / ".local" / "share"
+
+        database_path = (
+            user_data_root / APP_NAME / "data" / "backup.db"
+        )
+        legacy_path = (
+            Path(__file__).resolve().parents[2] / "data" / "backup.db"
+        )
+
+        if not database_path.exists() and legacy_path.is_file():
+            Database._migrate_legacy_database(legacy_path, database_path)
+
+        return database_path
+
+    @staticmethod
+    def _migrate_legacy_database(source_path, destination_path):
+        """Copy a legacy project database without removing its source file."""
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        file_descriptor, temporary_name = tempfile.mkstemp(
+            prefix="backup-",
+            suffix=".db.tmp",
+            dir=destination_path.parent,
+        )
+        os.close(file_descriptor)
+        temporary_path = Path(temporary_name)
+        source = None
+        destination = None
+
+        try:
+            source = sqlite3.connect(str(source_path))
+            destination = sqlite3.connect(str(temporary_path))
+            source.backup(destination)
+            destination.close()
+            destination = None
+            source.close()
+            source = None
+            os.replace(temporary_path, destination_path)
+        except Exception as exc:
+            if destination is not None:
+                destination.close()
+            if source is not None:
+                source.close()
+            temporary_path.unlink(missing_ok=True)
+            raise RuntimeError(
+                "Could not migrate the existing backup database to the "
+                f"user data folder: {exc}"
+            ) from exc
 
     def _connect(self):
         conn = sqlite3.connect(

@@ -99,14 +99,23 @@ class TelegramLoginDialog(QDialog):
         self.info_label.setWordWrap(True)
 
         self.api_info_label = QLabel(
-            f'{APP_NAME} needs a Telegram API ID and API Hash. '
-            'Get them from '
-            '<a href="https://my.telegram.org/apps">Telegram API Development Tools</a>, '
-            'then add them to the app\'s .env file.'
+            f'{APP_NAME} uses your Telegram API credentials on this PC. Get them from '
+            '<a href="https://my.telegram.org/apps">Telegram API Development Tools</a>. '
+            'They are saved in your Windows credential vault.'
         )
         self.api_info_label.setObjectName("apiInfo")
         self.api_info_label.setWordWrap(True)
         self.api_info_label.setOpenExternalLinks(True)
+
+        self.api_id_label = QLabel("Telegram API ID")
+        self.api_id_label.setObjectName("fieldLabel")
+        self.api_id_input = QLineEdit()
+        self.api_id_input.setPlaceholderText("Numeric API ID")
+        self.api_hash_label = QLabel("Telegram API Hash")
+        self.api_hash_label.setObjectName("fieldLabel")
+        self.api_hash_input = QLineEdit()
+        self.api_hash_input.setPlaceholderText("API Hash")
+        self.api_hash_input.setEchoMode(QLineEdit.EchoMode.Password)
 
         self.phone_label = QLabel("Phone number")
         self.phone_label.setObjectName("fieldLabel")
@@ -145,6 +154,10 @@ class TelegramLoginDialog(QDialog):
         layout.addWidget(self.info_label)
         layout.addWidget(self.api_info_label)
         layout.addSpacing(4)
+        layout.addWidget(self.api_id_label)
+        layout.addWidget(self.api_id_input)
+        layout.addWidget(self.api_hash_label)
+        layout.addWidget(self.api_hash_input)
         layout.addWidget(self.phone_label)
         layout.addWidget(self.phone_input)
         layout.addWidget(self.code_label)
@@ -160,6 +173,11 @@ class TelegramLoginDialog(QDialog):
         self.info_label.setText(
             "Enter the login code Telegram sent to your account."
         )
+        self.api_info_label.hide()
+        self.api_id_label.hide()
+        self.api_id_input.hide()
+        self.api_hash_label.hide()
+        self.api_hash_input.hide()
         self.phone_input.setEnabled(False)
         self.code_label.show()
         self.code_input.show()
@@ -184,6 +202,12 @@ class TelegramLoginDialog(QDialog):
 
     def phone(self):
         return self.phone_input.text().strip()
+
+    def api_id(self):
+        return self.api_id_input.text().strip()
+
+    def api_hash(self):
+        return self.api_hash_input.text().strip()
 
     def code(self):
         return self.code_input.text().strip()

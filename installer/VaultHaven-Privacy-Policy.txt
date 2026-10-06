@@ -1,0 +1,38 @@
+VAULTHAVEN PRIVACY POLICY
+Last updated: 7 October 2026
+
+SYSTEM REQUIREMENTS
+- Windows 10 or Windows 11, 64-bit.
+- Internet access and a Telegram account are needed to connect and upload.
+- Each user supplies their own Telegram API ID and API Hash from my.telegram.org/apps.
+- A private Telegram channel is required as the backup destination.
+- The installer contains the application runtime. A separate Python installation or runtime download is not required.
+
+ABOUT THIS APP
+VaultHaven is a Windows desktop application that lets you back up files you choose to a private Telegram channel you select. You control which folder is scanned, when scans and uploads run, and the Telegram account and channel used.
+
+INFORMATION STORED ON YOUR PC
+VaultHaven stores a local SQLite database containing selected file paths and names, file hashes, file sizes and modification times, upload status, Telegram message IDs, upload timestamps, and error details needed to manage backups. App preferences and the selected Telegram destination are stored in your Windows user profile.
+
+Your Telegram API ID and API Hash are saved in that Windows account's Credential Manager. Your Telegram login session and the backup database are stored under %LOCALAPPDATA%\VaultHaven\data. These items are not sent to the developer by VaultHaven.
+
+INFORMATION SENT TO TELEGRAM
+When you connect, VaultHaven uses Telegram's API to sign you in. When an upload runs, the selected file and its filename are sent to the private Telegram channel you chose. Telegram receives and stores this content under Telegram's own terms and privacy policy. VaultHaven cannot control Telegram's handling, availability, or retention of it.
+
+UPDATES AND NETWORK REQUESTS
+VaultHaven does not run analytics or send crash reports to the developer. If you choose About > Check for updates, the app requests public release metadata from GitHub. GitHub receives the normal network information associated with that request, including your IP address and the app's name and version in the request's User-Agent. Telegram network requests occur when you connect, verify the selected channel, or upload/manage backups.
+
+SHARING AND SALE
+VaultHaven's application code does not send your local database, selected folder contents, Telegram session, or API credentials to the developer. The files you choose to upload are shared with Telegram and the channel participants who can access that channel. Do not use a channel whose members you do not trust.
+
+RETENTION AND DELETION
+You control local backup data and can remove it by deleting the app data folder after exiting VaultHaven. Logging out removes the Telegram authorization from the local session. You can remove the app's API credentials through Windows Credential Manager. Uninstalling VaultHaven intentionally leaves the database, session, and user settings in place; uninstall does not delete files from Telegram.
+
+SECURITY
+Credential Manager protects API credentials within the current Windows account. The Telegram session file can authorize access to your Telegram account, so protect your Windows login and device. Anyone who can access your Telegram account or the selected Telegram channel may access uploaded files.
+
+CHILDREN
+VaultHaven is a general-purpose file backup tool and is not designed for children.
+
+CHANGES AND CONTACT
+This policy may be updated when VaultHaven's behavior changes. For privacy questions, contact the developer through the VaultHaven project's GitHub page: https://github.com/Rabby-XQ/Valulthaven.

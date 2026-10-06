@@ -57,6 +57,7 @@ from PySide6.QtWidgets import (
 
 from app.scanner.scan_worker import ScanWorker
 from app.telegram.client import TelegramService
+from app.telegram.credential_store import get_credentials, save_credentials
 from app.telegram.login_dialog import TelegramLoginDialog
 from app.telegram.destination_dialog import BackupLocationDialog
 from app.telegram.destination_store import DestinationStore
@@ -500,7 +501,10 @@ class MainWindow(QMainWindow):
             "",
         )
 
-        self.telegram = TelegramService()
+        saved_telegram_credentials = get_credentials()
+        self.telegram = TelegramService(
+            *(saved_telegram_credentials or (None, None))
+        )
         self.telegram_connected = False
         self.telegram_user = None
         self.telegram_profile_photo = None
@@ -1833,6 +1837,12 @@ class MainWindow(QMainWindow):
 
     async def _auto_connect_telegram(self):
         try:
+            if not self.telegram.has_credentials():
+                self.status_label.setText(
+                    "● Ready - Connect Telegram"
+                )
+                return
+
             self.status_label.setText(
                 "● Connecting Telegram..."
             )
@@ -1910,6 +1920,10 @@ class MainWindow(QMainWindow):
                 return
 
             dialog = TelegramLoginDialog(self)
+            saved_credentials = get_credentials()
+            if saved_credentials:
+                dialog.api_id_input.setText(saved_credentials[0])
+                dialog.api_hash_input.setText(saved_credentials[1])
 
             result = await open_dialog(dialog, delete_on_finish=False)
 
@@ -1923,6 +1937,35 @@ class MainWindow(QMainWindow):
                 )
 
                 return
+
+            try:
+                credentials_changed = (
+                    str(self.telegram.api_id or "") != dialog.api_id()
+                    or self.telegram.api_hash != dialog.api_hash()
+                )
+                if (
+                    credentials_changed
+                    and self.telegram.client is not None
+                    and self.telegram.client.is_connected()
+                ):
+                    await self.telegram.disconnect()
+                self.telegram.configure_credentials(
+                    dialog.api_id(),
+                    dialog.api_hash(),
+                )
+                save_credentials(
+                    dialog.api_id(),
+                    dialog.api_hash(),
+                )
+            except Exception as exc:
+                await self.show_async_message(
+                    QMessageBox.Icon.Critical,
+                    "Telegram API credentials",
+                    f"Could not save or use these credentials.\n\n{exc}",
+                )
+                return
+
+            await self.telegram.connect()
 
             phone = dialog.phone()
 
