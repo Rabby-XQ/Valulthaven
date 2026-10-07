@@ -15,7 +15,6 @@ DefaultGroupName=VaultHaven
 PrivilegesRequired=lowest
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
-LicenseFile=VaultHaven-EULA.txt
 InfoBeforeFile=VaultHaven-Privacy-Policy.txt
 InfoAfterFile=VaultHaven-After-Install.txt
 UninstallDisplayName=VaultHaven
@@ -39,13 +38,20 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 [Files]
 Source: "..\dist\VaultHaven\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "VaultHaven-Privacy-Policy.txt"; DestDir: "{app}"; Flags: ignoreversion
-Source: "VaultHaven-EULA.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "Third-Party-Notices.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\LICENSE"; DestDir: "{app}"; DestName: "VaultHaven-MIT-LICENSE.txt"; Flags: ignoreversion
+Source: "..\dist\Third-Party-Python-Licenses.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\LGPL-3.0.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\GPL-3.0.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\Python-Runtime-LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\VaultHaven"; Filename: "{app}\VaultHaven.exe"
 Name: "{group}\Privacy Policy"; Filename: "{app}\VaultHaven-Privacy-Policy.txt"
 Name: "{group}\Third-Party Notices"; Filename: "{app}\Third-Party-Notices.txt"
+Name: "{group}\VaultHaven MIT License"; Filename: "{app}\VaultHaven-MIT-LICENSE.txt"
+Name: "{group}\Third-Party Python Licenses"; Filename: "{app}\Third-Party-Python-Licenses.txt"
+Name: "{group}\Python Runtime License"; Filename: "{app}\Python-Runtime-LICENSE.txt"
 Name: "{autodesktop}\VaultHaven"; Filename: "{app}\VaultHaven.exe"; Tasks: desktopicon
 
 [Run]

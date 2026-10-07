@@ -1,39 +1,28 @@
-VAULTHAVEN THIRD-PARTY SOFTWARE NOTICES
+VAULTHAVEN THIRD-PARTY SOFTWARE AND SOURCE NOTICES
 
-VaultHaven includes third-party software. This notice is a summary; each
-component's own license governs its use and distribution. The installed
-application ships its libraries as separate files in the VaultHaven program
-folder so that users can replace compatible LGPL-covered Qt libraries.
+VaultHaven includes the third-party packages listed in
+Third-Party-Python-Licenses.txt. That file is generated during each build from
+the exact Python environment used to produce the installer and includes the
+package versions, license identifiers, and license texts supplied with those
+packages. It may include build-time packages as well as runtime packages.
 
-PySide6, Shiboken6, and Qt libraries
-License choices published by Qt for Python: GNU LGPL version 3, GNU GPL version
-3, or a Qt commercial license. VaultHaven is distributed under the LGPL option
-where applicable. The Qt libraries are separate shared-library files in the
-installation. You may replace LGPL-covered libraries with compatible modified
-versions, subject to the LGPL and technical compatibility. Qt license details,
-texts, source information, and third-party acknowledgements:
-https://doc.qt.io/qtforpython-6/licenses.html
-https://doc.qt.io/qtforpython-6/
+Qt for Python 6.11.2 (PySide6, Shiboken6, and Qt libraries)
+The PySide6 community distribution offers LGPLv3/GPLv3 licensing options.
+VaultHaven uses the LGPLv3 option for the Qt for Python and Qt components it
+uses. The complete LGPLv3 and GPLv3 texts are included in this installation.
+Qt libraries are shipped as separate files so that users can replace compatible
+LGPL-covered libraries, subject to the license terms. VaultHaven's MIT-licensed
+source code and build instructions are available at:
+https://github.com/Rabby-XQ/Valulthaven
 
-Telethon
-License: MIT. License and copyright notice are included with the Telethon
-package/source: https://github.com/LonamiWebs/Telethon
+The corresponding Qt 6.11.2 source archive is available from Qt:
+https://download.qt.io/official_releases/qt/6.11/6.11.2/single/qt-everywhere-src-6.11.2.tar.xz
+The corresponding PySide6 6.11.2 source distribution is available from:
+https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-6.11.2-src/
+Qt for Python's component-by-component license acknowledgements:
+https://doc.qt.io/qtforpython-6.11/licenses.html
 
-qasync
-License: BSD 2-Clause. License and copyright notice are included with the
-qasync package/source: https://github.com/CabbageDevelopment/qasync
-
-Python runtime
-The bundled Python runtime is governed by the Python Software Foundation
-License. https://docs.python.org/3/license.html
-
-PyInstaller
-PyInstaller is distributed under GPL with a bootloader exception. Its license
-and exception are available at https://github.com/pyinstaller/pyinstaller/blob/develop/COPYING.txt
-and https://github.com/pyinstaller/pyinstaller/blob/develop/doc/license.rst
-
-This application is proprietary only to the extent of VaultHaven's original
-code and assets. Nothing in the VaultHaven EULA removes permissions granted by
-the licenses above. A copy of applicable license terms is available from the
-linked upstream project/license pages. The exact third-party package versions
-are determined by the build dependencies used for each release.
+The exact dependency versions shipped with this build are recorded in
+Third-Party-Python-Licenses.txt. Each third-party license governs its own
+component. VaultHaven's MIT License applies only to VaultHaven's original code
+and does not replace or restrict third-party license permissions.

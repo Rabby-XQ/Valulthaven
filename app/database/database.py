@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 import sqlite3
 import tempfile
+from contextlib import contextmanager
 from datetime import datetime, timezone
 
 from app.constants import APP_NAME
@@ -25,12 +26,8 @@ class Database:
         else:
             user_data_root = Path.home() / ".local" / "share"
 
-        database_path = (
-            user_data_root / APP_NAME / "data" / "backup.db"
-        )
-        legacy_path = (
-            Path(__file__).resolve().parents[2] / "data" / "backup.db"
-        )
+        database_path = user_data_root / APP_NAME / "data" / "backup.db"
+        legacy_path = Path(__file__).resolve().parents[2] / "data" / "backup.db"
 
         if not database_path.exists() and legacy_path.is_file():
             Database._migrate_legacy_database(legacy_path, database_path)
@@ -72,33 +69,27 @@ class Database:
             ) from exc
 
     def _connect(self):
-        conn = sqlite3.connect(
-            self.db_path,
-            timeout=30,
-        )
-
-        conn.execute(
-            "PRAGMA busy_timeout = 30000"
-        )
-
-        conn.execute(
-            "PRAGMA synchronous = NORMAL"
-        )
-
+        conn = sqlite3.connect(self.db_path, timeout=30)
+        conn.execute("PRAGMA busy_timeout = 30000")
+        conn.execute("PRAGMA synchronous = NORMAL")
         return conn
+
+    @contextmanager
+    def _connection(self):
+        conn = self._connect()
+        try:
+            yield conn
+            conn.commit()
+        finally:
+            conn.close()
 
     @staticmethod
     def _now():
         return datetime.now(timezone.utc).isoformat()
 
     def _initialize(self):
-        with self._connect() as conn:
-
-            # Enable WAL only during database initialization.
-            conn.execute(
-                "PRAGMA journal_mode = WAL"
-            )
-
+        with self._connection() as conn:
+            conn.execute("PRAGMA journal_mode = WAL")
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS files (
@@ -120,32 +111,20 @@ class Database:
 
             existing_columns = {
                 row[1]
-                for row in conn.execute(
-                    "PRAGMA table_info(files)"
-                ).fetchall()
+                for row in conn.execute("PRAGMA table_info(files)").fetchall()
             }
-
             migrations = {
                 "telegram_message_id":
                     "ALTER TABLE files ADD COLUMN telegram_message_id INTEGER",
-
-                "uploaded_at":
-                    "ALTER TABLE files ADD COLUMN uploaded_at TEXT",
-
-                "last_error":
-                    "ALTER TABLE files ADD COLUMN last_error TEXT",
-
+                "uploaded_at": "ALTER TABLE files ADD COLUMN uploaded_at TEXT",
+                "last_error": "ALTER TABLE files ADD COLUMN last_error TEXT",
                 "destination_id":
                     "ALTER TABLE files ADD COLUMN destination_id INTEGER",
             }
-
             for column, sql in migrations.items():
                 if column not in existing_columns:
                     conn.execute(sql)
 
-            # Permanent upload history.
-            # One identical file hash can be uploaded once
-            # to each Telegram destination.
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS uploads (
@@ -158,28 +137,18 @@ class Database:
                 )
                 """
             )
-
             conn.execute(
-                """
-                CREATE INDEX IF NOT EXISTS idx_files_hash
-                ON files(file_hash)
-                """
+                "CREATE INDEX IF NOT EXISTS idx_files_hash ON files(file_hash)"
             )
-
             conn.execute(
-                """
-                CREATE INDEX IF NOT EXISTS idx_files_status
-                ON files(status)
-                """
+                "CREATE INDEX IF NOT EXISTS idx_files_status ON files(status)"
             )
-
             conn.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_files_status_destination
                 ON files(status, destination_id)
                 """
             )
-
             conn.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_uploads_hash_destination
@@ -190,12 +159,11 @@ class Database:
     def recover_interrupted_uploads(self):
         """Make uploads interrupted by process exit eligible for retry."""
         now = self._now()
-        with self._connect() as conn:
+        with self._connection() as conn:
             cursor = conn.execute(
                 """
                 UPDATE files
-                SET
-                    status = 'pending',
+                SET status = 'pending',
                     last_error = 'Upload was interrupted; scan and retry it',
                     updated_at = ?
                 WHERE status = 'uploading'
@@ -205,43 +173,28 @@ class Database:
             return cursor.rowcount
 
     def get_by_path(self, path):
-        with self._connect() as conn:
+        with self._connection() as conn:
             return conn.execute(
                 """
-                SELECT
-                    path,
-                    file_hash,
-                    size,
-                    mtime_ns,
-                    status,
-                    destination_id,
-                    telegram_message_id,
-                    uploaded_at,
-                    last_error
+                SELECT path, file_hash, size, mtime_ns, status,
+                       destination_id, telegram_message_id, uploaded_at,
+                       last_error
                 FROM files
                 WHERE path = ?
                 """,
                 (str(path),),
             ).fetchone()
 
-    def get_uploaded_by_hash(
-        self,
-        file_hash,
-        destination_id=None,
-    ):
+    def get_uploaded_by_hash(self, file_hash, destination_id=None):
         if not file_hash:
             return None
 
-        with self._connect() as conn:
-
+        with self._connection() as conn:
             if destination_id is None:
                 return conn.execute(
                     """
-                    SELECT
-                        file_hash,
-                        destination_id,
-                        telegram_message_id,
-                        uploaded_at
+                    SELECT file_hash, destination_id, telegram_message_id,
+                           uploaded_at
                     FROM uploads
                     WHERE file_hash = ?
                     LIMIT 1
@@ -251,20 +204,13 @@ class Database:
 
             return conn.execute(
                 """
-                SELECT
-                    file_hash,
-                    destination_id,
-                    telegram_message_id,
-                    uploaded_at
+                SELECT file_hash, destination_id, telegram_message_id,
+                       uploaded_at
                 FROM uploads
-                WHERE file_hash = ?
-                  AND destination_id = ?
+                WHERE file_hash = ? AND destination_id = ?
                 LIMIT 1
                 """,
-                (
-                    file_hash,
-                    int(destination_id),
-                ),
+                (file_hash, int(destination_id)),
             ).fetchone()
 
     def get_uploaded_file_signatures(self, destination_id):
@@ -272,16 +218,12 @@ class Database:
         if destination_id is None:
             return {}
 
-        with self._connect() as conn:
+        with self._connection() as conn:
             rows = conn.execute(
                 """
-                SELECT DISTINCT
-                    f.path,
-                    f.size,
-                    f.mtime_ns,
-                    f.file_hash,
-                    COALESCE(u.telegram_message_id, f.telegram_message_id),
-                    COALESCE(u.uploaded_at, f.uploaded_at)
+                SELECT DISTINCT f.path, f.size, f.mtime_ns, f.file_hash,
+                       COALESCE(u.telegram_message_id, f.telegram_message_id),
+                       COALESCE(u.uploaded_at, f.uploaded_at)
                 FROM files AS f
                 LEFT JOIN uploads AS u
                     ON u.file_hash = f.file_hash
@@ -309,20 +251,15 @@ class Database:
 
         now = self._now()
         destination_id = int(destination_id)
-
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute(
-                """
-                DELETE FROM uploads
-                WHERE file_hash = ? AND destination_id = ?
-                """,
+                "DELETE FROM uploads WHERE file_hash = ? AND destination_id = ?",
                 (file_hash, destination_id),
             )
             conn.execute(
                 """
                 UPDATE files
-                SET
-                    file_hash = NULL,
+                SET file_hash = NULL,
                     status = 'pending',
                     destination_id = NULL,
                     telegram_message_id = NULL,
@@ -335,49 +272,31 @@ class Database:
                 (now, file_hash, destination_id),
             )
 
-    def has_uploaded_to_destination(
-        self,
-        file_hash,
-        destination_id,
-    ):
+    def has_uploaded_to_destination(self, file_hash, destination_id):
         if not file_hash or destination_id is None:
             return False
 
-        with self._connect() as conn:
+        with self._connection() as conn:
             row = conn.execute(
                 """
-                SELECT 1
-                FROM uploads
-                WHERE file_hash = ?
-                  AND destination_id = ?
+                SELECT 1 FROM uploads
+                WHERE file_hash = ? AND destination_id = ?
                 LIMIT 1
                 """,
-                (
-                    file_hash,
-                    int(destination_id),
-                ),
+                (file_hash, int(destination_id)),
             ).fetchone()
-
             if row:
                 return True
 
-            # Legacy fallback for uploads recorded by the previous
-            # destination-aware database version.
             row = conn.execute(
                 """
-                SELECT 1
-                FROM files
-                WHERE file_hash = ?
-                  AND status = 'uploaded'
+                SELECT 1 FROM files
+                WHERE file_hash = ? AND status = 'uploaded'
                   AND destination_id = ?
                 LIMIT 1
                 """,
-                (
-                    file_hash,
-                    int(destination_id),
-                ),
+                (file_hash, int(destination_id)),
             ).fetchone()
-
             return row is not None
 
     def upsert(
@@ -390,23 +309,13 @@ class Database:
         destination_id=None,
     ):
         now = self._now()
-
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute(
                 """
                 INSERT INTO files
-                    (
-                        path,
-                        file_hash,
-                        size,
-                        mtime_ns,
-                        status,
-                        destination_id,
-                        created_at,
-                        updated_at
-                    )
+                    (path, file_hash, size, mtime_ns, status, destination_id,
+                     created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-
                 ON CONFLICT(path) DO UPDATE SET
                     file_hash = excluded.file_hash,
                     size = excluded.size,
@@ -414,89 +323,45 @@ class Database:
                     status = excluded.status,
                     destination_id = excluded.destination_id,
                     updated_at = excluded.updated_at,
-
-                    telegram_message_id =
-                        CASE
-                            WHEN excluded.status IN ('pending', 'skipped')
-                            THEN NULL
-                            ELSE files.telegram_message_id
-                        END,
-
-                    uploaded_at =
-                        CASE
-                            WHEN excluded.status IN ('pending', 'skipped')
-                            THEN NULL
-                            ELSE files.uploaded_at
-                        END,
-
-                    last_error =
-                        CASE
-                            WHEN excluded.status = 'pending'
-                            THEN NULL
-                            ELSE files.last_error
-                        END
+                    telegram_message_id = CASE
+                        WHEN excluded.status IN ('pending', 'skipped')
+                        THEN NULL ELSE files.telegram_message_id END,
+                    uploaded_at = CASE
+                        WHEN excluded.status IN ('pending', 'skipped')
+                        THEN NULL ELSE files.uploaded_at END,
+                    last_error = CASE
+                        WHEN excluded.status = 'pending'
+                        THEN NULL ELSE files.last_error END
                 """,
                 (
-                    str(path),
-                    file_hash,
-                    size,
-                    mtime_ns,
-                    status,
-                    destination_id,
-                    now,
-                    now,
+                    str(path), file_hash, size, mtime_ns, status,
+                    destination_id, now, now,
                 ),
             )
 
-    def set_status(
-        self,
-        path,
-        status,
-        last_error=None,
-    ):
+    def set_status(self, path, status, last_error=None):
         now = self._now()
-
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute(
                 """
                 UPDATE files
-                SET
-                    status = ?,
-                    last_error = ?,
-                    updated_at = ?
+                SET status = ?, last_error = ?, updated_at = ?
                 WHERE path = ?
                 """,
-                (
-                    status,
-                    last_error,
-                    now,
-                    str(path),
-                ),
+                (status, last_error, now, str(path)),
             )
 
-    def mark_uploading(
-        self,
-        path,
-        destination_id=None,
-    ):
+    def mark_uploading(self, path, destination_id=None):
         now = self._now()
-
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute(
                 """
                 UPDATE files
-                SET
-                    status = 'uploading',
-                    destination_id = ?,
-                    last_error = NULL,
-                    updated_at = ?
+                SET status = 'uploading', destination_id = ?,
+                    last_error = NULL, updated_at = ?
                 WHERE path = ?
                 """,
-                (
-                    destination_id,
-                    now,
-                    str(path),
-                ),
+                (destination_id, now, str(path)),
             )
 
     def mark_uploaded(
@@ -507,130 +372,69 @@ class Database:
         telegram_message_id,
     ):
         now = self._now()
-
-        with self._connect() as conn:
-
+        with self._connection() as conn:
             conn.execute(
                 """
                 INSERT INTO uploads
-                    (
-                        file_hash,
-                        destination_id,
-                        telegram_message_id,
-                        uploaded_at
-                    )
+                    (file_hash, destination_id, telegram_message_id, uploaded_at)
                 VALUES (?, ?, ?, ?)
-
-                    ON CONFLICT(file_hash, destination_id)
-                    DO UPDATE SET
-                        telegram_message_id =
-                            excluded.telegram_message_id,
-                        uploaded_at =
-                            excluded.uploaded_at
+                ON CONFLICT(file_hash, destination_id) DO UPDATE SET
+                    telegram_message_id = excluded.telegram_message_id,
+                    uploaded_at = excluded.uploaded_at
                 """,
-                (
-                    file_hash,
-                    int(destination_id),
-                    telegram_message_id,
-                    now,
-                ),
+                (file_hash, int(destination_id), telegram_message_id, now),
             )
-
             conn.execute(
                 """
                 UPDATE files
-                SET
-                    status = 'uploaded',
-                    destination_id = ?,
-                    telegram_message_id = ?,
-                    uploaded_at = ?,
-                    last_error = NULL,
-                    updated_at = ?
+                SET status = 'uploaded', destination_id = ?,
+                    telegram_message_id = ?, uploaded_at = ?,
+                    last_error = NULL, updated_at = ?
                 WHERE path = ?
                 """,
                 (
-                    int(destination_id),
-                    telegram_message_id,
-                    now,
-                    now,
+                    int(destination_id), telegram_message_id, now, now,
                     str(path),
                 ),
             )
 
-    def get_upload_record(
-        self,
-        file_hash,
-        destination_id,
-    ):
+    def get_upload_record(self, file_hash, destination_id):
         if not file_hash or destination_id is None:
             return None
-
-        with self._connect() as conn:
+        with self._connection() as conn:
             return conn.execute(
                 """
-                SELECT
-                    file_hash,
-                    destination_id,
-                    telegram_message_id,
-                    uploaded_at
+                SELECT file_hash, destination_id, telegram_message_id,
+                       uploaded_at
                 FROM uploads
-                WHERE file_hash = ?
-                  AND destination_id = ?
+                WHERE file_hash = ? AND destination_id = ?
                 LIMIT 1
                 """,
-                (
-                    file_hash,
-                    int(destination_id),
-                ),
+                (file_hash, int(destination_id)),
             ).fetchone()
 
-    def mark_duplicate(
-        self,
-        path,
-        destination_id,
-    ):
+    def mark_duplicate(self, path, destination_id):
         now = self._now()
-
-        with self._connect() as conn:
+        with self._connection() as conn:
             conn.execute(
                 """
                 UPDATE files
-                SET
-                    status = 'skipped',
-                    destination_id = ?,
+                SET status = 'skipped', destination_id = ?,
                     last_error = 'Duplicate file already uploaded',
                     updated_at = ?
                 WHERE path = ?
                 """,
-                (
-                    int(destination_id),
-                    now,
-                    str(path),
-                ),
+                (int(destination_id), now, str(path)),
             )
 
-    def mark_failed(
-        self,
-        path,
-        error,
-    ):
-        self.set_status(
-            path,
-            "failed",
-            str(error),
-        )
+    def mark_failed(self, path, error):
+        self.set_status(path, "failed", str(error))
 
     def get_pending_files(self):
-        with self._connect() as conn:
+        with self._connection() as conn:
             return conn.execute(
                 """
-                SELECT
-                    path,
-                    file_hash,
-                    size,
-                    mtime_ns,
-                    status,
-                    destination_id
+                SELECT path, file_hash, size, mtime_ns, status, destination_id
                 FROM files
                 WHERE status = 'pending'
                 ORDER BY id ASC

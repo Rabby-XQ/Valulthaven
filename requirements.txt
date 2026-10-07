@@ -1,4 +1,4 @@
-PySide6
-qasync
-Telethon
-PyInstaller
+PySide6==6.11.2
+qasync==0.28.0
+Telethon==1.45.0
+PyInstaller==6.22.3
