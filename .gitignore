@@ -1,4 +1,6 @@
 .env
+# Personal release workflow notes; keep local and never commit.
+PRIVATE-RELEASE-NOTES.md
 # User-local backup metadata; never commit or upload this database.
 /data/backup.db
 /data/backup.db-*

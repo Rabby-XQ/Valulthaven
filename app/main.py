@@ -1,4 +1,6 @@
 import asyncio
+import ctypes
+import os
 import sys
 from pathlib import Path
 
@@ -17,6 +19,13 @@ from app.utils.startup_manager import (
 
 
 def main():
+
+    # Give Windows a stable application identity so Explorer and the taskbar
+    # use VaultHaven's executable/window icon instead of Python's icon.
+    if os.name == "nt":
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            "RabbyXQ.VaultHaven"
+        )
 
     startup_mode = "--startup" in sys.argv[1:]
     if not startup_mode:

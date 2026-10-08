@@ -33,6 +33,7 @@ exe = EXE(
     [],
     [],
     name="VaultHaven",
+    icon="app/assets/vaulthaven.ico",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

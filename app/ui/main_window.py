@@ -19,6 +19,7 @@ from PySide6.QtGui import (
     QAction,
     QColor,
     QIcon,
+    QPalette,
     QPainter,
     QPainterPath,
     QPixmap,
@@ -1376,7 +1377,7 @@ class MainWindow(QMainWindow):
         destination_row.addWidget(self.destination_label, 1)
 
         self.change_destination_button = QPushButton("Choose channel")
-        self.change_destination_button.setFixedWidth(110)
+        self.change_destination_button.setFixedWidth(150)
         self.change_destination_button.setEnabled(False)
         self.change_destination_button.clicked.connect(
             self.change_backup_location
@@ -2260,6 +2261,8 @@ class MainWindow(QMainWindow):
         dialog.setStyleSheet("""
             QDialog { background: #f7f8fa; color: #202124; }
             QLabel { background: transparent; color: #202124; }
+            QLabel a { color: #202124; text-decoration: none; }
+            QLabel a:hover { color: #202124; text-decoration: none; }
             QLabel#aboutTitle { font-size: 21px; font-weight: 700; }
             QLabel#aboutMuted { color: #5f6368; }
             QPushButton {
@@ -2309,6 +2312,16 @@ class MainWindow(QMainWindow):
                 f'<a href="{url}" style="text-decoration:none">{label}</a>'
             )
             link.setOpenExternalLinks(True)
+            link_palette = link.palette()
+            link_palette.setColor(
+                QPalette.ColorRole.Link,
+                QColor("#202124"),
+            )
+            link_palette.setColor(
+                QPalette.ColorRole.LinkVisited,
+                QColor("#202124"),
+            )
+            link.setPalette(link_palette)
             icon_label = QLabel()
             icon_label.setFixedSize(18, 18)
             icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -2346,6 +2359,16 @@ class MainWindow(QMainWindow):
             f'<a href="{GITHUB_REPOSITORY_URL}">VaultHaven project</a>'
         )
         project_link.setOpenExternalLinks(True)
+        project_link_palette = project_link.palette()
+        project_link_palette.setColor(
+            QPalette.ColorRole.Link,
+            QColor("#202124"),
+        )
+        project_link_palette.setColor(
+            QPalette.ColorRole.LinkVisited,
+            QColor("#202124"),
+        )
+        project_link.setPalette(project_link_palette)
         layout.addWidget(project_link)
 
         credit_label = QLabel(

@@ -35,4 +35,4 @@ CHILDREN
 VaultHaven is a general-purpose file backup tool and is not designed for children.
 
 CHANGES AND CONTACT
-This policy may be updated when VaultHaven's behavior changes. For privacy questions, contact the developer through the VaultHaven project's GitHub page: https://github.com/Rabby-XQ/Valulthaven.
+This policy may be updated when VaultHaven's behavior changes. For privacy questions, contact the developer through the VaultHaven project's GitHub page.
