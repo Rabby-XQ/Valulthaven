@@ -14,8 +14,8 @@ SetupIconFile=..\app\assets\vaulthaven.ico
 DefaultDirName={localappdata}\Programs\VaultHaven
 DefaultGroupName=VaultHaven
 PrivilegesRequired=lowest
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 InfoBeforeFile=VaultHaven-Privacy-Policy.txt
 InfoAfterFile=VaultHaven-After-Install.txt
 UninstallDisplayName=VaultHaven
@@ -48,6 +48,24 @@ Source: "..\dist\Python-Runtime-LICENSE.txt"; DestDir: "{app}\licenses"; Flags: 
 
 ; Remove documents installed at the program root by earlier VaultHaven builds.
 [InstallDelete]
+; Replace the complete frozen runtime on upgrades so Qt/PySide DLLs from an
+; earlier build cannot remain beside the current runtime and be loaded instead.
+; User backup data is stored separately under %LOCALAPPDATA%\VaultHaven\data.
+Type: filesandordirs; Name: "{app}\_internal"
+; Recreate the app-owned license directory from the current installer payload.
+Type: filesandordirs; Name: "{app}\licenses"
+; Older PyInstaller layouts placed runtime DLLs and Python modules beside the
+; EXE. Remove those obsolete root-level files so Windows cannot load stale Qt
+; or Python binaries ahead of the current runtime in _internal.
+Type: files; Name: "{app}\*.dll"
+Type: files; Name: "{app}\*.pyd"
+Type: files; Name: "{app}\*.zip"
+Type: filesandordirs; Name: "{app}\PySide6"
+Type: filesandordirs; Name: "{app}\shiboken6"
+Type: filesandordirs; Name: "{app}\telethon"
+Type: filesandordirs; Name: "{app}\qasync"
+Type: filesandordirs; Name: "{app}\cryptg"
+Type: filesandordirs; Name: "{app}\app"
 Type: files; Name: "{app}\VaultHaven-Privacy-Policy.txt"
 Type: files; Name: "{app}\Third-Party-Notices.txt"
 Type: files; Name: "{app}\VaultHaven-MIT-LICENSE.txt"

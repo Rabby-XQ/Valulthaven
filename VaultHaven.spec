@@ -1,5 +1,7 @@
 # PyInstaller entry point. Only the application logo is bundled as data;
 # user databases, Telegram sessions, .env files, and developer files are excluded.
+from pathlib import Path
+
 from PyInstaller.utils.hooks import collect_all
 
 
@@ -26,6 +28,21 @@ a = Analysis(
     noarchive=False,
     optimize=1,
 )
+
+# The local build environment can expose Poppler's ICU 78 DLLs on PATH. Those
+# DLLs export version-suffixed ICU symbols, while Qt6Core imports the
+# Windows-provided, unsuffixed ICU API. Bundling Poppler's copy makes QtCore
+# fail to load with ERROR_PROC_NOT_FOUND (WinError 127). Keep ICU DLLs shipped
+# by PySide6 itself, but leave unrelated PATH copies out of the application.
+a.binaries = [
+    binary
+    for binary in a.binaries
+    if not (
+        Path(binary[0]).name.lower().startswith("icu")
+        and "pyside6" not in str(binary[1]).lower()
+    )
+]
+
 pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
