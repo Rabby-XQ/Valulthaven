@@ -42,8 +42,15 @@ class TelegramLoginDialog(QDialog):
                 font-size: 12px;
             }
             QLabel#apiInfo a {
-                color: #1a73e8;
-                text-decoration: none;
+                color: #0b57d0;
+                font-weight: 600;
+                text-decoration: underline;
+            }
+            QLabel#apiInfo a:hover {
+                color: #0842a0;
+            }
+            QLabel#apiInfo a:visited {
+                color: #681da8;
             }
             QLabel#fieldLabel {
                 color: #3c4043;

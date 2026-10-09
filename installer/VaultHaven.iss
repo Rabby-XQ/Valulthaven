@@ -86,5 +86,19 @@ Name: "{autodesktop}\VaultHaven"; Filename: "{app}\VaultHaven.exe"; Tasks: deskt
 [Run]
 Filename: "{app}\VaultHaven.exe"; Description: "Launch VaultHaven"; Flags: postinstall nowait skipifsilent
 
+[Code]
+function IsVaultHavenUpdate: Boolean;
+begin
+  Result := ExpandConstant('{param:VAULTHAVENUPDATE|0}') = '1';
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+begin
+  if (CurStep = ssPostInstall) and IsVaultHavenUpdate then
+    Exec(ExpandConstant('{app}\VaultHaven.exe'), '', '', SW_SHOWNORMAL, ewNoWait, ResultCode);
+end;
+
 ; User data under %LOCALAPPDATA% and Qt user settings are intentionally kept
 ; after uninstall, so removing the app cannot silently erase backup history.

@@ -50,10 +50,10 @@ jobs:
         shell: pwsh
         run: .\installer\clean-install-smoke-test.ps1 -InstallerPath "dist\installer\VaultHaven-Setup-$env:BUILD_VERSION.exe"
 
-      - name: Create draft GitHub release
+      - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          draft: true
+          draft: false
           generate_release_notes: true
           append_body: true
           body: |

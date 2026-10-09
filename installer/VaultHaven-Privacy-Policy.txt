@@ -1,5 +1,5 @@
 VAULTHAVEN PRIVACY POLICY
-Last updated: 7 October 2026
+Last updated: 9 October 2026
 
 SYSTEM REQUIREMENTS
 - Windows 10 or Windows 11, 64-bit.
@@ -20,7 +20,7 @@ INFORMATION SENT TO TELEGRAM
 When you connect, VaultHaven uses Telegram's API to sign you in. When an upload runs, the selected file and its filename are sent to the private Telegram channel you chose. Telegram receives and stores this content under Telegram's own terms and privacy policy. VaultHaven cannot control Telegram's handling, availability, or retention of it.
 
 UPDATES AND NETWORK REQUESTS
-VaultHaven does not run analytics or send crash reports to the developer. If you choose About > Check for updates, the app requests public release metadata from GitHub. GitHub receives the normal network information associated with that request, including your IP address and the app's name and version in the request's User-Agent. Telegram network requests occur when you connect, verify the selected channel, or upload/manage backups.
+VaultHaven does not run analytics or send crash reports to the developer. If you choose About > Check for updates, the app requests public release metadata from GitHub. If you choose Download and install, it downloads the release installer from GitHub, verifies its SHA-256 digest against GitHub's release metadata, and runs the installer after your confirmation. GitHub receives the normal network information associated with these requests, including your IP address and the app's name and version in the request's User-Agent. Telegram network requests occur when you connect, verify the selected channel, or upload/manage backups.
 
 SHARING AND SALE
 VaultHaven's application code does not send your local database, selected folder contents, Telegram session, or API credentials to the developer. The files you choose to upload are shared with Telegram and the channel participants who can access that channel. Do not use a channel whose members you do not trust.

@@ -1,6 +1,12 @@
 import asyncio
+import hashlib
 import json
+import os
 import re
+import subprocess
+import sys
+import tempfile
+import threading
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
@@ -53,6 +59,7 @@ from PySide6.QtWidgets import (
     QWidgetAction,
     QVBoxLayout,
     QPushButton,
+    QProgressDialog,
     QWidget,
 )
 
@@ -102,7 +109,7 @@ def format_size(size):
 
 
 class ReleaseCheckWorker(QThread):
-    result_ready = Signal(str, str, str)
+    result_ready = Signal(str, str, str, int, str, str)
 
     def __init__(self, repository_url, parent=None):
         super().__init__(parent)
@@ -112,7 +119,9 @@ class ReleaseCheckWorker(QThread):
         parsed = urlsplit(self.repository_url)
         parts = [part for part in parsed.path.strip("/").split("/") if part]
         if parsed.hostname not in {"github.com", "www.github.com"} or len(parts) < 2:
-            self.result_ready.emit("", "", "The GitHub repository URL is invalid.")
+            self.result_ready.emit(
+                "", "", "", 0, "The GitHub repository URL is invalid.", ""
+            )
             return
 
         owner, repository = parts[:2]
@@ -129,22 +138,167 @@ class ReleaseCheckWorker(QThread):
         try:
             with urlopen(request, timeout=15) as response:
                 payload = json.loads(response.read().decode("utf-8"))
+            if not isinstance(payload, dict):
+                raise ValueError("GitHub returned invalid release metadata.")
+
+            version = str(payload.get("tag_name", "")).strip()
+            release_url = str(payload.get("html_url", "")).strip()
+            normalized_version = version.removeprefix("v")
+            if not re.fullmatch(r"\d+\.\d+\.\d+", normalized_version):
+                self.result_ready.emit(
+                    version, release_url, "", 0,
+                    "The latest release has an unsupported version format.", "",
+                )
+                return
+
+            expected_name = f"VaultHaven-Setup-{normalized_version}.exe"
+            assets = payload.get("assets")
+            if not isinstance(assets, list):
+                raise ValueError("GitHub returned invalid installer metadata.")
+            installer = next(
+                (
+                    asset for asset in assets
+                    if isinstance(asset, dict)
+                    and asset.get("name") == expected_name
+                    and asset.get("state") == "uploaded"
+                ),
+                None,
+            )
+            if installer is None:
+                self.result_ready.emit(
+                    version, release_url, "", 0,
+                    f"The release does not contain {expected_name}.", "",
+                )
+                return
+
+            asset_url = str(installer.get("browser_download_url", "")).strip()
+            asset_parsed = urlsplit(asset_url)
+            digest = str(installer.get("digest", "")).strip().lower()
+            size = installer.get("size", 0)
+            if (
+                asset_parsed.scheme != "https"
+                or asset_parsed.hostname != "github.com"
+                or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest)
+                or not isinstance(size, int)
+                or size <= 0
+                or size > 500 * 1024 * 1024
+            ):
+                self.result_ready.emit(
+                    version, release_url, "", 0,
+                    "The release installer is missing valid HTTPS and SHA-256 verification data.", "",
+                )
+                return
+
             self.result_ready.emit(
-                str(payload.get("tag_name", "")).strip(),
-                str(payload.get("html_url", "")).strip(),
-                "",
+                version, release_url, asset_url, size, "", digest.removeprefix("sha256:")
             )
         except HTTPError as exc:
             if exc.code == 404:
                 self.result_ready.emit(
                     "",
                     "",
+                    "",
+                    0,
                     "No published GitHub release was found for this project.",
+                    "",
                 )
             else:
-                self.result_ready.emit("", "", f"GitHub returned HTTP {exc.code}.")
+                self.result_ready.emit(
+                    "", "", "", 0, f"GitHub returned HTTP {exc.code}.", ""
+                )
         except (URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
-            self.result_ready.emit("", "", f"Could not check GitHub releases: {exc}")
+            self.result_ready.emit(
+                "", "", "", 0, f"Could not check GitHub releases: {exc}", ""
+            )
+
+
+class UpdateDownloadWorker(QThread):
+    progress_changed = Signal(int, int)
+    download_finished = Signal(str, str)
+
+    def __init__(self, download_url, version, expected_size, expected_sha256, parent=None):
+        super().__init__(parent)
+        self.download_url = download_url
+        self.version = version.removeprefix("v")
+        self.expected_size = expected_size
+        self.expected_sha256 = expected_sha256
+        self._cancel_event = threading.Event()
+
+    def cancel(self):
+        self._cancel_event.set()
+
+    def run(self):
+        installer_path = None
+        partial_path = None
+        try:
+            parsed = urlsplit(self.download_url)
+            if parsed.scheme != "https" or parsed.hostname != "github.com":
+                raise ValueError("The installer download URL is not trusted.")
+
+            download_directory = Path(tempfile.gettempdir()) / "VaultHaven" / "updates"
+            download_directory.mkdir(parents=True, exist_ok=True)
+            installer_path = download_directory / f"VaultHaven-Setup-{self.version}.exe"
+            partial_path = download_directory / f"{installer_path.name}.part"
+            installer_path.unlink(missing_ok=True)
+            partial_path.unlink(missing_ok=True)
+
+            request = Request(
+                self.download_url,
+                headers={
+                    "Accept": "application/octet-stream",
+                    "User-Agent": f"{APP_NAME}/{APP_VERSION}",
+                },
+            )
+            digest = hashlib.sha256()
+            received = 0
+            with urlopen(request, timeout=30) as response, partial_path.open("wb") as output:
+                final_url = urlsplit(response.geturl())
+                if final_url.scheme != "https":
+                    raise ValueError("The installer download did not remain on HTTPS.")
+
+                response_length = response.headers.get("Content-Length")
+                if response_length and int(response_length) != self.expected_size:
+                    raise ValueError("The installer size does not match GitHub release metadata.")
+
+                while True:
+                    if self._cancel_event.is_set():
+                        raise InterruptedError("Update download cancelled.")
+                    chunk = response.read(1024 * 256)
+                    if not chunk:
+                        break
+                    received += len(chunk)
+                    if received > self.expected_size:
+                        raise ValueError("The installer is larger than expected.")
+                    output.write(chunk)
+                    digest.update(chunk)
+                    self.progress_changed.emit(received, self.expected_size)
+
+            if self._cancel_event.is_set():
+                raise InterruptedError("Update download cancelled.")
+            if received != self.expected_size:
+                raise ValueError("The downloaded installer is incomplete.")
+            if digest.hexdigest() != self.expected_sha256:
+                raise ValueError("The installer SHA-256 digest did not match GitHub.")
+
+            os.replace(partial_path, installer_path)
+            partial_path = None
+            if os.name == "nt":
+                with Path(f"{installer_path}:Zone.Identifier").open(
+                    "w", encoding="utf-8", newline=""
+                ) as zone_stream:
+                    zone_stream.write(
+                        "[ZoneTransfer]\r\n"
+                        "ZoneId=3\r\n"
+                        "HostUrl=https://github.com/\r\n"
+                    )
+            self.download_finished.emit(str(installer_path), "")
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError, InterruptedError) as exc:
+            if installer_path is not None:
+                installer_path.unlink(missing_ok=True)
+            self.download_finished.emit("", str(exc))
+        finally:
+            if partial_path is not None:
+                partial_path.unlink(missing_ok=True)
 
 
 class FileCard(QFrame):
@@ -535,6 +689,10 @@ class MainWindow(QMainWindow):
         self.upload_completed_count = 0
         self.upload_failed_count = 0
         self._upload_batch_notified = False
+        self._release_check_worker = None
+        self._update_download_worker = None
+        self._update_progress_dialog = None
+        self._available_update = None
         self.upload_started_at = None
         self.upload_last_current = 0
         self.upload_last_time = None
@@ -2261,8 +2419,9 @@ class MainWindow(QMainWindow):
         dialog.setStyleSheet("""
             QDialog { background: #f7f8fa; color: #202124; }
             QLabel { background: transparent; color: #202124; }
-            QLabel a { color: #202124; text-decoration: none; }
-            QLabel a:hover { color: #202124; text-decoration: none; }
+            QLabel a { color: #0b57d0; text-decoration: underline; }
+            QLabel a:hover { color: #0842a0; text-decoration: underline; }
+            QLabel a:visited { color: #681da8; }
             QLabel#aboutTitle { font-size: 21px; font-weight: 700; }
             QLabel#aboutMuted { color: #5f6368; }
             QPushButton {
@@ -2309,17 +2468,17 @@ class MainWindow(QMainWindow):
 
         def add_social_link(label, url, icon_svg):
             link = QLabel(
-                f'<a href="{url}" style="text-decoration:none">{label}</a>'
+                f'<a href="{url}" style="color:#0b57d0; text-decoration:underline">{label}</a>'
             )
             link.setOpenExternalLinks(True)
             link_palette = link.palette()
             link_palette.setColor(
                 QPalette.ColorRole.Link,
-                QColor("#202124"),
+                QColor("#0b57d0"),
             )
             link_palette.setColor(
                 QPalette.ColorRole.LinkVisited,
-                QColor("#202124"),
+                QColor("#681da8"),
             )
             link.setPalette(link_palette)
             icon_label = QLabel()
@@ -2356,17 +2515,19 @@ class MainWindow(QMainWindow):
         layout.addLayout(social_links)
 
         project_link = QLabel(
-            f'<a href="{GITHUB_REPOSITORY_URL}">VaultHaven project</a>'
+            f'<a href="{GITHUB_REPOSITORY_URL}" '
+            'style="color:#0b57d0; text-decoration:underline">'
+            'VaultHaven project</a>'
         )
         project_link.setOpenExternalLinks(True)
         project_link_palette = project_link.palette()
         project_link_palette.setColor(
             QPalette.ColorRole.Link,
-            QColor("#202124"),
+            QColor("#0b57d0"),
         )
         project_link_palette.setColor(
             QPalette.ColorRole.LinkVisited,
-            QColor("#202124"),
+            QColor("#681da8"),
         )
         project_link.setPalette(project_link_palette)
         layout.addWidget(project_link)
@@ -2380,13 +2541,21 @@ class MainWindow(QMainWindow):
 
         buttons = QHBoxLayout()
         update_button = QPushButton("Check for updates")
+        update_button.setObjectName("checkForUpdatesButton")
         update_button.clicked.connect(
             lambda: self.check_for_updates(dialog, update_button)
         )
+        install_button = QPushButton("Download and install")
+        install_button.setEnabled(False)
+        install_button.clicked.connect(
+            lambda: self.download_and_install_update(dialog, install_button)
+        )
+        self._about_install_button = install_button
         close_button = QPushButton("Close")
         close_button.setObjectName("aboutClose")
         close_button.clicked.connect(dialog.close)
         buttons.addWidget(update_button)
+        buttons.addWidget(install_button)
         buttons.addStretch()
         buttons.addWidget(close_button)
         layout.addLayout(buttons)
@@ -2406,15 +2575,20 @@ class MainWindow(QMainWindow):
         button.setEnabled(False)
         button.setText("Checking...")
         worker = ReleaseCheckWorker(GITHUB_REPOSITORY_URL, self)
+        self._available_update = None
+        self._about_install_button.setEnabled(False)
         worker.result_ready.connect(
-            lambda version, url, error: self._show_update_result(
-                dialog, button, version, url, error
+            lambda version, url, asset_url, size, error, digest: self._show_update_result(
+                dialog, button, version, url, asset_url, size, error, digest
             )
         )
         self._release_check_worker = worker
         worker.start()
 
-    def _show_update_result(self, dialog, button, latest_version, release_url, error):
+    def _show_update_result(
+        self, dialog, button, latest_version, release_url,
+        installer_url, installer_size, error, installer_sha256,
+    ):
         button.setEnabled(True)
         button.setText("Check for updates")
 
@@ -2435,19 +2609,160 @@ class MainWindow(QMainWindow):
         message.setWindowTitle("VaultHaven updates")
         message.setTextFormat(Qt.TextFormat.RichText)
         if latest_numbers > current_numbers:
+            self._available_update = {
+                "version": latest_version,
+                "release_url": release_url,
+                "installer_url": installer_url,
+                "installer_size": installer_size,
+                "installer_sha256": installer_sha256,
+            }
+            self._about_install_button.setEnabled(True)
             message.setIcon(QMessageBox.Icon.Information)
             message.setText(
                 f"A newer version is available: <b>{latest_version}</b>.<br>"
-                f'<a href="{release_url}">Open the GitHub release</a> '
-                "to download it."
+                "Use <b>Download and install</b> in About when you are ready."
             )
         else:
+            self._available_update = None
+            self._about_install_button.setEnabled(False)
             message.setIcon(QMessageBox.Icon.Information)
             message.setText(
                 f"VaultHaven is up to date (version {APP_VERSION})."
             )
         message.setStandardButtons(QMessageBox.StandardButton.Ok)
         message.open()
+
+    def download_and_install_update(self, dialog, button):
+        update = self._available_update
+        if not update:
+            QMessageBox.information(
+                dialog,
+                "No update available",
+                "Check for updates first to find the latest release.",
+            )
+            return
+
+        choice = QMessageBox.question(
+            dialog,
+            "Install VaultHaven update",
+            f"Download and install VaultHaven {update['version']} now?\n\n"
+            "VaultHaven will close during installation and reopen if the update succeeds. "
+            "Windows may show a security warning because this installer is not code-signed.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if choice != QMessageBox.StandardButton.Yes:
+            return
+
+        button.setEnabled(False)
+        button.setText("Downloading...")
+        progress = QProgressDialog(
+            "Downloading and verifying the installer...",
+            "Cancel",
+            0,
+            update["installer_size"],
+            dialog,
+        )
+        progress.setWindowTitle("VaultHaven update")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setMinimumDuration(0)
+        progress.setAutoClose(False)
+        progress.setAutoReset(False)
+
+        worker = UpdateDownloadWorker(
+            update["installer_url"],
+            update["version"],
+            update["installer_size"],
+            update["installer_sha256"],
+            self,
+        )
+        progress.canceled.connect(worker.cancel)
+        dialog.finished.connect(worker.cancel)
+        worker.progress_changed.connect(progress.setValue)
+        worker.download_finished.connect(
+            lambda installer_path, error: self._finish_update_download(
+                dialog, button, progress, installer_path, error
+            )
+        )
+        self._update_download_worker = worker
+        self._update_progress_dialog = progress
+        progress.show()
+        worker.start()
+
+    def _finish_update_download(self, dialog, button, progress, installer_path, error):
+        progress.close()
+        button.setEnabled(bool(self._available_update))
+        button.setText("Download and install")
+        self._update_download_worker = None
+        self._update_progress_dialog = None
+
+        if error:
+            if error != "Update download cancelled.":
+                QMessageBox.warning(
+                    dialog,
+                    "Update download failed",
+                    f"VaultHaven could not verify or download the installer.\n\n{error}",
+                )
+            return
+
+        try:
+            install_directory = self._get_install_directory()
+            if os.name != "nt":
+                raise OSError("In-app installer updates are supported on Windows only.")
+
+            command = [
+                str(installer_path),
+                "/SILENT",
+                "/SP-",
+                "/CLOSEAPPLICATIONS",
+                "/NORESTART",
+                "/VAULTHAVENUPDATE=1",
+                f'/DIR="{install_directory}"',
+            ]
+            subprocess.Popen(
+                command,
+                close_fds=True,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+        except (OSError, ValueError) as exc:
+            QMessageBox.critical(
+                dialog,
+                "Could not start the installer",
+                f"The verified installer was downloaded, but VaultHaven could not start it.\n\n{exc}",
+            )
+            return
+
+        self.exit_application()
+
+    @staticmethod
+    def _get_install_directory():
+        if getattr(sys, "frozen", False):
+            return str(Path(sys.executable).resolve().parent)
+
+        try:
+            import winreg
+
+            uninstall_key = (
+                "Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\"
+                "{7C4E25F8-7F4A-4E4D-98EF-1C426C2EE5C1}_is1"
+            )
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, uninstall_key) as key:
+                for value_name in ("InstallLocation", "DisplayIcon"):
+                    try:
+                        value, _ = winreg.QueryValueEx(key, value_name)
+                    except OSError:
+                        continue
+                    if value:
+                        executable = str(value).split(",", 1)[0].strip().strip('"')
+                        candidate = Path(executable)
+                        return str(candidate.parent if candidate.suffix.lower() == ".exe" else candidate)
+        except (ImportError, OSError):
+            pass
+
+        local_app_data = os.environ.get("LOCALAPPDATA")
+        if not local_app_data:
+            raise OSError("Windows could not locate the VaultHaven installation directory.")
+        return str(Path(local_app_data) / "Programs" / "VaultHaven")
 
     @staticmethod
     def _sidebar_icon(name, color="#5f6368"):
