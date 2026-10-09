@@ -100,5 +100,5 @@ begin
     Exec(ExpandConstant('{app}\VaultHaven.exe'), '', '', SW_SHOWNORMAL, ewNoWait, ResultCode);
 end;
 
-; User data under %LOCALAPPDATA% and Qt user settings are intentionally kept
-; after uninstall, so removing the app cannot silently erase backup history.
+// User data under %LOCALAPPDATA% and Qt user settings are intentionally kept
+// after uninstall, so removing the app cannot silently erase backup history.
